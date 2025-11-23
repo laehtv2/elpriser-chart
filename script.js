@@ -96,10 +96,10 @@ const endStr   = format(end);
   let csv2 = " ,Jylland+Fyn, ,Sjælland+Øer\n";
   
   // Laveste pris
-  csv2 += `Laveste pris,${jfMM.min.time},${(jfMM.min.price).toFixed(2)}+' kr.',${oeMM.min.time},${(oeMM.min.price).toFixed(2)}+' kr.'\n`;
+  csv2 += `Laveste pris,${jfMM.min.time},${(jfMM.min.price).toFixed(2)} kr.,${oeMM.min.time},${(oeMM.min.price).toFixed(2)} kr.\n`;
   
   // Højeste pris
-  csv2 += `Højeste pris,${jfMM.max.time},${(jfMM.max.price).toFixed(2)}+' kr.',${oeMM.max.time},${(oeMM.max.price).toFixed(2)}+' kr.'\n`;
+  csv2 += `Højeste pris,${jfMM.max.time},${(jfMM.max.price).toFixed(2)} kr.,${oeMM.max.time},${(oeMM.max.price).toFixed(2)} kr.\n`;
   
   fs.writeFileSync("extrema.csv", csv2, "utf8");
   console.log("✔ extrema.csv genereret");
