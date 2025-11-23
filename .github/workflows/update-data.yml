@@ -2,8 +2,8 @@ name: Opdater elpriser
 
 on:
   schedule:
-    - cron: "0 * * * *"  # kør hver hele time
-  workflow_dispatch:      # mulighed for manuel kørsel
+    - cron: "0 * * * *"    # kør hver hele time
+  workflow_dispatch:        # mulighed for manuel kørsel
 
 jobs:
   update:
@@ -22,10 +22,10 @@ jobs:
         run: |
           node script.js
 
-      - name: Commit & push
+      - name: Commit & push CSV filer
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add data.csv
-          git commit -m "Auto update data $(date)" || echo "No changes"
+          git add data.csv extrema.csv
+          git commit -m "Auto update data $(date)" || echo "Ingen ændringer"
           git push
