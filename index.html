@@ -1,28 +1,103 @@
 <!DOCTYPE html>
 <html lang="da">
 <head>
-  <meta charset="UTF-8">
-  <title>Elpriser – Maks/Min</title>
+  <meta charset="UTF-8" />
+  <meta http-equiv="refresh" content="3600"> <!-- Auto-refresh hver time -->
+  <title>Elpriser – Højeste og laveste</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 40px;
+      max-width: 800px;
+      margin: auto;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 1.2em;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 12px;
+      text-align: center;
+    }
+    th {
+      background: #f2f2f2;
+    }
+  </style>
 </head>
+
 <body>
 
-<h2>Dagens elpriser – Maks/Min</h2>
+<h2>Højeste og laveste elpris</h2>
+<p>Opdateres automatisk hver time.</p>
 
-<!-- Datawrapper chart embed -->
-<iframe id="dw-iframe" 
-        src="https://datawrapper.dwcdn.net/LDmxN/3/" 
-        width="100%" 
-        height="600"
-        scrolling="no" 
-        frameborder="0">
-</iframe>
+<table id="resultTable">
+  <tr>
+    <th></th>
+    <th colspan="2">Jylland + Fyn</th>
+    <th colspan="2">Sjælland + Øer</th>
+  </tr>
+  <tr>
+    <th></th>
+    <th>Klokkeslæt</th>
+    <th>Pris</th>
+    <th>Klokkeslæt</th>
+    <th>Pris</th>
+  </tr>
+  <tr>
+    <td>Laveste pris</td>
+    <td id="jfMinTime"></td>
+    <td id="jfMinValue"></td>
+    <td id="oeMinTime"></td>
+    <td id="oeMinValue"></td>
+  </tr>
+  <tr>
+    <td>Højeste pris</td>
+    <td id="jfMaxTime"></td>
+    <td id="jfMaxValue"></td>
+    <td id="oeMaxTime"></td>
+    <td id="oeMaxValue"></td>
+  </tr>
+</table>
 
 <script>
-// Auto-refresh hver time
-setInterval(() => {
-  const iframe = document.getElementById('dw-iframe');
-  iframe.src = iframe.src.split('?')[0] + '?t=' + new Date().getTime();
-}, 60*60*1000); // 1 time = 3600 sekunder
+async function loadData() {
+  const res = await fetch("data.csv?" + Date.now());
+  const text = await res.text();
+
+  const rows = text.trim().split("\n").slice(1);
+  const data = rows.map(r => {
+    const [time, jf, oe] = r.split(",");
+    return {
+      time,
+      jf: parseFloat(jf.replace(",", ".")),
+      oe: parseFloat(oe.replace(",", "."))
+    };
+  });
+
+  const jfValues = data.filter(d => !isNaN(d.jf));
+  const oeValues = data.filter(d => !isNaN(d.oe));
+
+  const jfMin = jfValues.reduce((a, b) => (b.jf < a.jf ? b : a));
+  const jfMax = jfValues.reduce((a, b) => (b.jf > a.jf ? b : a));
+  const oeMin = oeValues.reduce((a, b) => (b.oe < a.oe ? b : a));
+  const oeMax = oeValues.reduce((a, b) => (b.oe > a.oe ? b : a));
+
+  document.getElementById("jfMinTime").textContent = jfMin.time.slice(11, 16);
+  document.getElementById("jfMinValue").textContent = jfMin.jf.toFixed(2) + " kr./kWh";
+
+  document.getElementById("jfMaxTime").textContent = jfMax.time.slice(11, 16);
+  document.getElementById("jfMaxValue").textContent = jfMax.jf.toFixed(2) + " kr./kWh";
+
+  document.getElementById("oeMinTime").textContent = oeMin.time.slice(11, 16);
+  document.getElementById("oeMinValue").textContent = oeMin.oe.toFixed(2) + " kr./kWh";
+
+  document.getElementById("oeMaxTime").textContent = oeMax.time.slice(11, 16);
+  document.getElementById("oeMaxValue").textContent = oeMax.oe.toFixed(2) + " kr./kWh";
+}
+
+loadData();
 </script>
 
 </body>
