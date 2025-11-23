@@ -1,9 +1,9 @@
 const fs = require("fs");
 
-// --- Tidspunkter ---
+// --- Tidsinterval ---
 const now = new Date();
 const start = new Date(now);
-start.setMinutes(0,0,0); // rund ned
+start.setMinutes(0, 0, 0);
 const end = new Date(start.getTime() + 36 * 60 * 60 * 1000);
 
 function format(d) {
@@ -30,78 +30,74 @@ const endStr   = format(end);
     return;
   }
 
-  // Data pr kvartal
-  const jf = [];
-  const oe = [];
+  // Opdel i DK1/DK2
+  const jf = []; // DK1
+  const oe = []; // DK2
 
   records.forEach(r => {
-    const time = r.TimeDK;
-    const price = r.DayAheadPriceDKK;
-    if (r.PriceArea === "DK1") jf.push({time, price});
-    if (r.PriceArea === "DK2") oe.push({time, price});
+    const t = r.TimeDK;
+    const p = r.DayAheadPriceDKK;
+    if (r.PriceArea === "DK1") jf.push({ time: t, price: p });
+    if (r.PriceArea === "DK2") oe.push({ time: t, price: p });
   });
 
-  // Find maks/min (baseret på kvartalspriser)
-  function findMinMax(arr) {
-    let min = arr[0];
-    let max = arr[0];
+  // --- Find maks/min ---
+  function extrema(arr) {
+    let min = arr[0], max = arr[0];
     arr.forEach(v => {
       if (v.price < min.price) min = v;
       if (v.price > max.price) max = v;
     });
-    return {min, max};
+    return { min, max };
   }
 
-  const jfMM = findMinMax(jf);
-  const oeMM = findMinMax(oe);
+  const jfMM = extrema(jf);
+  const oeMM = extrema(oe);
 
-  // Midl timepriser
+  // --- MIDL pr time ---
   const times = {};
 
-  function addToTimes(arr, key) {
+  function group(arr, key) {
     arr.forEach(d => {
       const date = new Date(d.time);
       date.setMinutes(0,0,0);
       const hour = date.toISOString().slice(0,16);
-      if (!times[hour]) times[hour] = {jf: [], oe: []};
+      if (!times[hour]) times[hour] = { jf: [], oe: [] };
       times[hour][key].push(d.price);
     });
   }
 
-  addToTimes(jf, "jf");
-  addToTimes(oe, "oe");
+  group(jf, "jf");
+  group(oe, "oe");
 
-  const hoursSorted = Object.keys(times).sort();
+  const hours = Object.keys(times).sort();
 
-  // Generér CSV
-  let csv = "Time,JyllandFyn,SjaellandOeer,MinJF,MinJFTime,MaxJF,MaxJFTime,MinOE,MinOETime,MaxOE,MaxOETime\n";
+  // --- CSV: data.csv (kun midlet pr time) ---
+  let csv1 = "Time,JyllandFyn,SjaellandOeer\n";
 
-  hoursSorted.forEach(h => {
-    const avgJF =
-      times[h].jf.length > 0
-        ? (times[h].jf.reduce((a,b)=>a+b,0) / times[h].jf.length).toFixed(3)
-        : "";
-    const avgOE =
-      times[h].oe.length > 0
-        ? (times[h].oe.reduce((a,b)=>a+b,0) / times[h].oe.length).toFixed(3)
-        : "";
+  hours.forEach(h => {
+    const avgJF = times[h].jf.length
+      ? (times[h].jf.reduce((a,b)=>a+b,0) / times[h].jf.length).toFixed(3)
+      : "";
 
-    csv += [
-      h,
-      avgJF,
-      avgOE,
-      jfMM.min.price.toFixed(3),
-      jfMM.min.time,
-      jfMM.max.price.toFixed(3),
-      jfMM.max.time,
-      oeMM.min.price.toFixed(3),
-      oeMM.min.time,
-      oeMM.max.price.toFixed(3),
-      oeMM.max.time
-    ].join(",") + "\n";
+    const avgOE = times[h].oe.length
+      ? (times[h].oe.reduce((a,b)=>a+b,0) / times[h].oe.length).toFixed(3)
+      : "";
+
+    csv1 += `${h},${avgJF},${avgOE}\n`;
   });
 
-  // Gem CSV
-  fs.writeFileSync("data.csv", csv, "utf8");
-  console.log("data.csv genereret");
+  fs.writeFileSync("data.csv", csv1, "utf8");
+  console.log("✔ data.csv genereret");
+
+  // --- CSV: extrema.csv (tabel til Datawrapper) ---
+  let csv2 = "Type,Omraade,Tidspunkt,Pris\n";
+
+  csv2 += `Laveste pris,Jylland+Fyn,${jfMM.min.time},${jfMM.min.price}\n`;
+  csv2 += `Højeste pris,Jylland+Fyn,${jfMM.max.time},${jfMM.max.price}\n`;
+  csv2 += `Laveste pris,Sjælland+Øer,${oeMM.min.time},${oeMM.min.price}\n`;
+  csv2 += `Højeste pris,Sjælland+Øer,${oeMM.max.time},${oeMM.max.price}\n`;
+
+  fs.writeFileSync("extrema.csv", csv2, "utf8");
+  console.log("✔ extrema.csv genereret");
 })();
