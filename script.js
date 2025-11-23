@@ -75,7 +75,7 @@ const endStr   = format(end);
   const hours = Object.keys(times).sort();
 
   // --- CSV: data.csv (kun midlet pr time) ---
-  let csv1 = "Time,Jylland + Fyn,Sjælland + øer\n";
+  let csv1 = "Time,Jylland + Fyn,Sjælland + Øer\n";
 
   hours.forEach(h => {
     const avgJF = times[h].jf.length
