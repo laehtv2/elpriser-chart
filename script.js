@@ -93,7 +93,7 @@ const endStr   = format(end);
   console.log("✔ data.csv genereret");
 
   // --- CSV: extrema.csv (tabel til Datawrapper) ---
-  let csv2 = " ,Jylland + Fyn, ,Sjælland + Øer \n";
+  let csv2 = " ,Jylland + Fyn, ,Sjælland + Øer, \n";
   
   // Laveste pris
   csv2 += `Laveste pris,${jfMM.min.time},${(jfMM.min.price).toFixed(2)},${oeMM.min.time},${(oeMM.min.price).toFixed(2)}\n`;
