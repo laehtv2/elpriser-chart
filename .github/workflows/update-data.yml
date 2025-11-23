@@ -1,0 +1,31 @@
+name: Opdater elpriser
+
+on:
+  schedule:
+    - cron: "0 * * * *"  # kør hver hele time
+  workflow_dispatch:      # mulighed for manuel kørsel
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Hent repo
+        uses: actions/checkout@v4
+
+      - name: Installer Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Kør script
+        run: |
+          node script.js
+
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add data.csv
+          git commit -m "Auto update data $(date)" || echo "No changes"
+          git push
