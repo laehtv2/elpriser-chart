@@ -1,104 +1,60 @@
-<!DOCTYPE html>
-<html lang="da">
+<!doctype html>
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta http-equiv="refresh" content="3600"> <!-- Auto-refresh hver time -->
-  <title>Elpriser – Højeste og laveste</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 40px;
-      max-width: 800px;
-      margin: auto;
-    }
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      font-size: 1.2em;
-    }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 12px;
-      text-align: center;
-    }
-    th {
-      background: #f2f2f2;
-    }
-  </style>
+  <meta charset="utf-8">
+  <title>Elpriser JSON</title>
 </head>
-
 <body>
-
-<h2>Højeste og laveste elpris</h2>
-<p>Opdateres automatisk hver time.</p>
-
-<table id="resultTable">
-  <tr>
-    <th></th>
-    <th colspan="2">Jylland + Fyn</th>
-    <th colspan="2">Sjælland + Øer</th>
-  </tr>
-  <tr>
-    <th></th>
-    <th>Klokkeslæt</th>
-    <th>Pris</th>
-    <th>Klokkeslæt</th>
-    <th>Pris</th>
-  </tr>
-  <tr>
-    <td>Laveste pris</td>
-    <td id="jfMinTime"></td>
-    <td id="jfMinValue"></td>
-    <td id="oeMinTime"></td>
-    <td id="oeMinValue"></td>
-  </tr>
-  <tr>
-    <td>Højeste pris</td>
-    <td id="jfMaxTime"></td>
-    <td id="jfMaxValue"></td>
-    <td id="oeMaxTime"></td>
-    <td id="oeMaxValue"></td>
-  </tr>
-</table>
-
 <script>
-async function loadData() {
-  const res = await fetch("data.csv?" + Date.now());
-  const text = await res.text();
+async function hentData() {
 
-  const rows = text.trim().split("\n").slice(1);
-  const data = rows.map(r => {
-    const [time, jf, oe] = r.split(",");
-    return {
-      time,
-      jf: parseFloat(jf.replace(",", ".")),
-      oe: parseFloat(oe.replace(",", "."))
-    };
+  // Start: nu rundet til nærmeste hele time
+  const now = new Date();
+  now.setMinutes(0,0,0);
+
+  // Slut: 36 timer frem
+  const end = new Date(now.getTime() + 36 * 60 * 60 * 1000);
+
+  function fmt(d) {
+    return d.toISOString().slice(0,16);
+  }
+
+  const url =
+    `https://api.energidataservice.dk/dataset/DayAheadPrices` +
+    `?start=${fmt(now)}&end=${fmt(end)}` +
+    `&filter=${encodeURIComponent('{"PriceArea":["DK1","DK2"]}')}` +
+    `&limit=500`;
+
+  const res = await fetch(url);
+  const json = await res.json();
+
+  const times = {};
+
+  json.records.forEach(r => {
+    const d = new Date(r.TimeDK);
+    d.setMinutes(0,0,0);
+    const hourKey = d.toISOString().slice(0,13)+":00";
+
+    if (!times[hourKey]) times[hourKey] = { DK1: [], DK2: [] };
+    times[hourKey][r.PriceArea].push(r.DayAheadPriceDKK);
   });
 
-  const jfValues = data.filter(d => !isNaN(d.jf));
-  const oeValues = data.filter(d => !isNaN(d.oe));
+  const output = [];
+  Object.keys(times).sort().forEach(hour => {
+    const j = times[hour].DK1;
+    const s = times[hour].DK2;
 
-  const jfMin = jfValues.reduce((a, b) => (b.jf < a.jf ? b : a));
-  const jfMax = jfValues.reduce((a, b) => (b.jf > a.jf ? b : a));
-  const oeMin = oeValues.reduce((a, b) => (b.oe < a.oe ? b : a));
-  const oeMax = oeValues.reduce((a, b) => (b.oe > a.oe ? b : a));
+    output.push({
+      time: hour,
+      jylland_fyn: j.reduce((a,b)=>a+b,0)/j.length,
+      sjaelland_oerne: s.reduce((a,b)=>a+b,0)/s.length
+    });
+  });
 
-  document.getElementById("jfMinTime").textContent = jfMin.time.slice(11, 16);
-  document.getElementById("jfMinValue").textContent = jfMin.jf.toFixed(2) + " kr./kWh";
-
-  document.getElementById("jfMaxTime").textContent = jfMax.time.slice(11, 16);
-  document.getElementById("jfMaxValue").textContent = jfMax.jf.toFixed(2) + " kr./kWh";
-
-  document.getElementById("oeMinTime").textContent = oeMin.time.slice(11, 16);
-  document.getElementById("oeMinValue").textContent = oeMin.oe.toFixed(2) + " kr./kWh";
-
-  document.getElementById("oeMaxTime").textContent = oeMax.time.slice(11, 16);
-  document.getElementById("oeMaxValue").textContent = oeMax.oe.toFixed(2) + " kr./kWh";
+  document.body.innerText = JSON.stringify(output, null, 2);
 }
 
-loadData();
+hentData();
 </script>
-
 </body>
 </html>
