@@ -1,0 +1,63 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Elpriser MIN MAX</title>
+</head>
+<body>
+<script>
+async function hentMinMax() {
+
+  const now = new Date();
+  now.setMinutes(0,0,0);
+  const end = new Date(now.getTime() + 36*60*60*1000);
+
+  function fmt(d){ return d.toISOString().slice(0,16); }
+
+  const url =
+    `https://api.energidataservice.dk/dataset/DayAheadPrices` +
+    `?start=${fmt(now)}&end=${fmt(end)}` +
+    `&filter=${encodeURIComponent('{"PriceArea":["DK1","DK2"]}')}` +
+    `&limit=500`;
+
+  const res = await fetch(url);
+  const json = await res.json();
+
+  let maxJF=-Infinity, minJF=Infinity, tMaxJF="", tMinJF="";
+  let maxOE=-Infinity, minOE=Infinity, tMaxOE="", tMinOE="";
+
+  json.records.forEach(r => {
+    const val = r.DayAheadPriceDKK;
+    const t = r.TimeDK;
+
+    if (r.PriceArea==="DK1") {
+      if (val>maxJF){maxJF=val;tMaxJF=t;}
+      if (val<minJF){minJF=val;tMinJF=t;}
+    }
+
+    if (r.PriceArea==="DK2") {
+      if (val>maxOE){maxOE=val;tMaxOE=t;}
+      if (val<minOE){minOE=val;tMinOE=t;}
+    }
+  });
+
+  document.body.innerText = JSON.stringify({
+    jylland_fyn: {
+      max: maxJF,
+      tid_max: tMaxJF,
+      min: minJF,
+      tid_min: tMinJF
+    },
+    sjaelland_oerne: {
+      max: maxOE,
+      tid_max: tMaxOE,
+      min: minOE,
+      tid_min: tMinOE
+    }
+  }, null, 2);
+}
+
+hentMinMax();
+</script>
+</body>
+</html>
