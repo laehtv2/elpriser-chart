@@ -1,0 +1,51 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+</head>
+<body>
+<script>
+async function run() {
+
+  const now = new Date();
+  now.setMinutes(0,0,0);
+  const end = new Date(now.getTime() + 36*60*60*1000);
+
+  function fmt(d){ return d.toISOString().slice(0,16); }
+
+  const url =
+    `https://api.energidataservice.dk/dataset/DayAheadPrices` +
+    `?start=${fmt(now)}&end=${fmt(end)}` +
+    `&filter=${encodeURIComponent('{"PriceArea":["DK1","DK2"]}')}` +
+    `&limit=500`;
+
+  const res = await fetch(url);
+  const json = await res.json();
+
+  const times = {};
+
+  json.records.forEach(r => {
+    const d = new Date(r.TimeDK);
+    d.setMinutes(0,0,0);
+    const key = d.toISOString().slice(0,13)+":00";
+
+    if (!times[key]) times[key] = { DK1: [], DK2: [] };
+    times[key][r.PriceArea].push(r.DayAheadPriceDKK);
+  });
+
+  const out = [];
+  Object.keys(times).sort().forEach(hour => {
+    out.push({
+      time: hour,
+      jylland_fyn: times[hour].DK1.reduce((a,b)=>a+b,0)/times[hour].DK1.length,
+      sjaelland_oerne: times[hour].DK2.reduce((a,b)=>a+b,0)/times[hour].DK2.length
+    });
+  });
+
+  document.body.innerText = JSON.stringify(out, null, 2);
+}
+
+run();
+</script>
+</body>
+</html>
