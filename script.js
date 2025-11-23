@@ -30,13 +30,15 @@ const endStr   = format(end);
     return;
   }
 
-  // Opdel i DK1/DK2
+  // Opdel i DK1/DK2 og konverter til kr./kWh inkl. moms
   const jf = []; // DK1
   const oe = []; // DK2
 
   records.forEach(r => {
     const t = r.TimeDK;
-    const p = r.DayAheadPriceDKK;
+    // Konverter kr/MWh -> kr/kWh og læg moms til
+    const p = (r.DayAheadPriceDKK / 1000) * 1.25;
+
     if (r.PriceArea === "DK1") jf.push({ time: t, price: p });
     if (r.PriceArea === "DK2") oe.push({ time: t, price: p });
   });
@@ -73,7 +75,7 @@ const endStr   = format(end);
   const hours = Object.keys(times).sort();
 
   // --- CSV: data.csv (kun midlet pr time) ---
-  let csv1 = "Time,JyllandFyn,SjaellandOeer\n";
+  let csv1 = "Time,Jylland + Fyn,Sjælland + øer\n";
 
   hours.forEach(h => {
     const avgJF = times[h].jf.length
@@ -93,10 +95,10 @@ const endStr   = format(end);
   // --- CSV: extrema.csv (tabel til Datawrapper) ---
   let csv2 = "Type,Omraade,Tidspunkt,Pris\n";
 
-  csv2 += `Laveste pris,Jylland+Fyn,${jfMM.min.time},${jfMM.min.price}\n`;
-  csv2 += `Højeste pris,Jylland+Fyn,${jfMM.max.time},${jfMM.max.price}\n`;
-  csv2 += `Laveste pris,Sjælland+Øer,${oeMM.min.time},${oeMM.min.price}\n`;
-  csv2 += `Højeste pris,Sjælland+Øer,${oeMM.max.time},${oeMM.max.price}\n`;
+  csv2 += `Laveste pris,Jylland + Fyn,${jfMM.min.time},${jfMM.min.price.toFixed(3)}\n`;
+  csv2 += `Højeste pris,Jylland + Fyn,${jfMM.max.time},${jfMM.max.price.toFixed(3)}\n`;
+  csv2 += `Laveste pris,Sjælland + Øer,${oeMM.min.time},${oeMM.min.price.toFixed(3)}\n`;
+  csv2 += `Højeste pris,Sjælland + Øer,${oeMM.max.time},${oeMM.max.price.toFixed(3)}\n`;
 
   fs.writeFileSync("extrema.csv", csv2, "utf8");
   console.log("✔ extrema.csv genereret");
