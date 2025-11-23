@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8">
+  <title>Elpriser – Maks/Min</title>
+</head>
+<body>
+
+<h2>Dagens elpriser – Maks/Min</h2>
+
+<!-- Datawrapper chart embed -->
+<iframe id="dw-iframe" 
+        src="https://datawrapper.dwcdn.net/LDmxN/3/" 
+        width="100%" 
+        height="600"
+        scrolling="no" 
+        frameborder="0">
+</iframe>
+
+<script>
+// Auto-refresh hver time
+setInterval(() => {
+  const iframe = document.getElementById('dw-iframe');
+  iframe.src = iframe.src.split('?')[0] + '?t=' + new Date().getTime();
+}, 60*60*1000); // 1 time = 3600 sekunder
+</script>
+
+</body>
+</html>
