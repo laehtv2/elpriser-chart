@@ -93,13 +93,15 @@ const endStr   = format(end);
   console.log("✔ data.csv genereret");
 
   // --- CSV: extrema.csv (tabel til Datawrapper) ---
-  let csv2 = "Type,Omraade,Tidspunkt,Pris\n";
-
-  csv2 += `Laveste pris,Jylland + Fyn,${jfMM.min.time},${jfMM.min.price.toFixed(3)}\n`;
-  csv2 += `Højeste pris,Jylland + Fyn,${jfMM.max.time},${jfMM.max.price.toFixed(3)}\n`;
-  csv2 += `Laveste pris,Sjælland + Øer,${oeMM.min.time},${oeMM.min.price.toFixed(3)}\n`;
-  csv2 += `Højeste pris,Sjælland + Øer,${oeMM.max.time},${oeMM.max.price.toFixed(3)}\n`;
-
+  let csv2 = "Type,Jylland+Fyn Tid,Jylland+Fyn Pris,Sjælland+Øer Tid,Sjælland+Øer Pris\n";
+  
+  // Laveste pris
+  csv2 += `Laveste pris,${jfMM.min.time},${jfMM.min.price.toFixed(3)},${oeMM.min.time},${oeMM.min.price.toFixed(3)}\n`;
+  
+  // Højeste pris
+  csv2 += `Højeste pris,${jfMM.max.time},${jfMM.max.price.toFixed(3)},${oeMM.max.time},${oeMM.max.price.toFixed(3)}\n`;
+  
   fs.writeFileSync("extrema.csv", csv2, "utf8");
   console.log("✔ extrema.csv genereret");
+
 })();
