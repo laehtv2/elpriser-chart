@@ -2,7 +2,7 @@ name: Opdater elpriser
 
 on:
   schedule:
-    - cron: "0/30 * * * *"    # kør hver halve time
+    - cron: "*/10 * * * *"    # kør hver 10. minut
   workflow_dispatch:        # mulighed for manuel kørsel
 
 jobs:
