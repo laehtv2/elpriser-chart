@@ -1,17 +1,27 @@
 const fs = require("fs");
 
-// --- Tidsinterval ---
+// --- Tidsinterval (start = nuværende time i DK-tid) ---
+
+// DK-tid baseret på systemets timezone
 const now = new Date();
-const start = new Date(now);
-start.setMinutes(0, 0, 0);
+
+// Rund til nærmeste hele time i DK-tid
+const dkStart = new Date(now);
+dkStart.setMinutes(0, 0, 0);
+
+// Konverter DK-start til UTC for API'et
+const start = new Date(dkStart.getTime() - dkStart.getTimezoneOffset() * 60000);
+
+// Slut = start + 36 timer (også i UTC)
 const end = new Date(start.getTime() + 36 * 60 * 60 * 1000);
 
+// Format til API'et (UTC ISO uden sekunder)
 function format(d) {
   return d.toISOString().slice(0, 16);
 }
 
 const startStr = format(start);
-const endStr   = format(end);
+const endStr = format(end);
 
 // --- Hent data ---
 (async () => {
@@ -36,7 +46,6 @@ const endStr   = format(end);
 
   records.forEach(r => {
     const t = r.TimeDK;
-    // Konverter kr/MWh -> kr/kWh og læg moms til
     const p = (r.DayAheadPriceDKK / 1000) * 1.25;
 
     if (r.PriceArea === "DK1") jf.push({ time: t, price: p });
@@ -56,14 +65,14 @@ const endStr   = format(end);
   const jfMM = extrema(jf);
   const oeMM = extrema(oe);
 
-  // --- MIDL pr time ---
+  // --- MIDLET pr time ---
   const times = {};
 
   function group(arr, key) {
     arr.forEach(d => {
       const date = new Date(d.time);
-      date.setMinutes(0,0,0);
-      const hour = date.toISOString().slice(0,16);
+      date.setMinutes(0, 0, 0);
+      const hour = date.toISOString().slice(0, 16);
       if (!times[hour]) times[hour] = { jf: [], oe: [] };
       times[hour][key].push(d.price);
     });
@@ -74,7 +83,7 @@ const endStr   = format(end);
 
   const hours = Object.keys(times).sort();
 
-  // --- CSV: data.csv (kun midlet pr time) ---
+  // --- CSV: data.csv ---
   let csv1 = "Time,Jylland + Fyn,Sjælland + Øer\n";
 
   hours.forEach(h => {
@@ -92,13 +101,10 @@ const endStr   = format(end);
   fs.writeFileSync("data.csv", csv1, "utf8");
   console.log("✔ data.csv genereret");
 
-  // --- CSV: extrema.csv (tabel til Datawrapper) ---
+  // --- CSV: extrema.csv (uændret som ønsket) ---
   let csv2 = " ,Jylland + Fyn, ,Sjælland + Øer, \n";
   
-  // Laveste pris
   csv2 += `Laveste pris,${jfMM.min.time},${(jfMM.min.price).toFixed(2)},${oeMM.min.time},${(oeMM.min.price).toFixed(2)}\n`;
-  
-  // Højeste pris
   csv2 += `Højeste pris,${jfMM.max.time},${(jfMM.max.price).toFixed(2)},${oeMM.max.time},${(oeMM.max.price).toFixed(2)}\n`;
   
   fs.writeFileSync("extrema.csv", csv2, "utf8");
