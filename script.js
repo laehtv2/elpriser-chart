@@ -23,17 +23,24 @@ async function fetchJSON(url, retries = 3) {
 }
 
 // --- Tidsinterval baseret på DK-tid ---
-const now = new Date();
+function nowInDK() {
+  const now = new Date();
+  const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+  const dkOffset = 1; // vintertid = UTC+1
+  return new Date(utc + dkOffset * 3600000);
+}
 
-// Sæt starten til DEN TIME VI ER I (DK-tid)
-const dkStart = new Date(now);
-dkStart.setMinutes(0, 0, 0);
+// Lav DK-tid nu
+const dkNow = nowInDK();
 
-// Konverter DK-start → UTC
-const start = new Date(dkStart);
+// Rund ned til hel time
+dkNow.setMinutes(0, 0, 0);
 
-// Slut = start + 36 timer
-const end = new Date(start.getTime() + 36 * 60 * 60 * 1000);
+// Start = DK-time i ISO-format
+const start = dkNow;
+
+// Slut = 36 timer senere (i DK-tid)
+const end = new Date(start.getTime() + 36 * 3600000);
 
 // Format til API
 function formatDK(d) {
