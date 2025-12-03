@@ -2,8 +2,8 @@ name: Opdater elpriser
 
 on:
   schedule:
-    - cron: "*/10 * * * *"    # kør hver 10. minut
-  workflow_dispatch:        # mulighed for manuel kørsel
+    - cron: "0 * * * *"   # Kør præcis hver hele time
+  workflow_dispatch:
 
 jobs:
   update:
@@ -19,8 +19,7 @@ jobs:
           node-version: 18
 
       - name: Kør script
-        run: |
-          node script.js
+        run: node script.js
 
       - name: Commit & push CSV filer
         run: |
@@ -29,4 +28,3 @@ jobs:
           git add data.csv extrema.csv
           git commit -m "Auto update data $(date -u)" || echo "No changes to commit"
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/laehtv2/elpriser-chart.git HEAD:main
-
