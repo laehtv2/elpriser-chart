@@ -30,20 +30,20 @@ const dkStart = new Date(now);
 dkStart.setMinutes(0, 0, 0);
 
 // Konverter DK-start → UTC
-const start = new Date(dkStart.getTime() - dkStart.getTimezoneOffset() * 60000);
+const start = new Date(dkStart);
 
 // Slut = start + 36 timer
 const end = new Date(start.getTime() + 36 * 60 * 60 * 1000);
 
 // Format til API
-function formatUTC(d) {
-  return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
-    .toISOString()
-    .slice(0, 16);
+function formatDK(d) {
+  const iso = new Date(d.getTime()).toISOString();
+  return iso.slice(0, 16);
 }
 
-const startStr = formatUTC(start);
-const endStr = formatUTC(end);
+
+const startStr = formatDK(start);
+const endStr = formatDK(end);
 
 // --- Hent data ---
 (async () => {
