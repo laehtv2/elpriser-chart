@@ -91,11 +91,12 @@ const endStr = formatDK(end);
 
   function group(arr, key) {
     arr.forEach(d => {
-      const hour = d.time.slice(0, 16); // "YYYY-MM-DDTHH:MM"
+      const hour = d.time.slice(0, 13) + ":00"; // Rigtig time-gruppering (DK-tid)
       if (!times[hour]) times[hour] = { jf: [], oe: [] };
       times[hour][key].push(d.price);
     });
   }
+
 
   group(jf, "jf");
   group(oe, "oe");
