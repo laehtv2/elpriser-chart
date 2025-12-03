@@ -1,10 +1,7 @@
-# Reactivated after API HTML failures 
 name: Opdater elpriser
 
 on:
-  schedule:
-    - cron: "0 * * * *"   # Kør præcis hver hele time
-  workflow_dispatch:
+  workflow_dispatch:  # workflow kan trigges eksternt eller manuelt
 
 jobs:
   update:
