@@ -36,12 +36,14 @@ const start = new Date(dkStart.getTime() - dkStart.getTimezoneOffset() * 60000);
 const end = new Date(start.getTime() + 36 * 60 * 60 * 1000);
 
 // Format til API
-function format(d) {
-  return d.toISOString().slice(0, 16);
+function formatUTC(d) {
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 16);
 }
 
-const startStr = format(start);
-const endStr = format(end);
+const startStr = formatUTC(start);
+const endStr = formatUTC(end);
 
 // --- Hent data ---
 (async () => {
