@@ -1,21 +1,41 @@
 const fs = require("fs");
 
-// --- Tidsinterval (start = nuværende time i DK-tid) ---
+// --- Retry-capable fetch der sikrer JSON svar ---
+async function fetchJSON(url, retries = 3) {
+  for (let i = 1; i <= retries; i++) {
+    try {
+      const res = await fetch(url);
+      const text = await res.text();
 
-// DK-tid baseret på systemets timezone
+      // Hvis API’et svarer HTML → fejl
+      if (text.trim().startsWith("<")) {
+        throw new Error("API returned HTML instead of JSON");
+      }
+
+      return JSON.parse(text);
+
+    } catch (err) {
+      console.log(`⚠ API-fejl (forsøg ${i}/${retries}): ${err.message}`);
+      if (i === retries) throw err;
+      await new Promise(r => setTimeout(r, 2000)); // prøv igen efter 2 sek
+    }
+  }
+}
+
+// --- Tidsinterval baseret på DK-tid ---
 const now = new Date();
 
-// Rund til nærmeste hele time i DK-tid
+// Sæt starten til DEN TIME VI ER I (DK-tid)
 const dkStart = new Date(now);
 dkStart.setMinutes(0, 0, 0);
 
-// Konverter DK-start til UTC for API'et
+// Konverter DK-start → UTC
 const start = new Date(dkStart.getTime() - dkStart.getTimezoneOffset() * 60000);
 
-// Slut = start + 36 timer (også i UTC)
+// Slut = start + 36 timer
 const end = new Date(start.getTime() + 36 * 60 * 60 * 1000);
 
-// Format til API'et (UTC ISO uden sekunder)
+// Format til API
 function format(d) {
   return d.toISOString().slice(0, 16);
 }
@@ -31,8 +51,7 @@ const endStr = format(end);
     `&filter=${encodeURIComponent('{"PriceArea":["DK1","DK2"]}')}` +
     "&limit=500";
 
-  const res = await fetch(url);
-  const json = await res.json();
+  const json = await fetchJSON(url);
   const records = json.records;
 
   if (!records || records.length === 0) {
@@ -40,19 +59,19 @@ const endStr = format(end);
     return;
   }
 
-  // Opdel i DK1/DK2 og konverter til kr./kWh inkl. moms
-  const jf = []; // DK1
-  const oe = []; // DK2
+  // Opdel i DK1/DK2 og konverter til kr/kWh inkl. moms
+  const jf = [];
+  const oe = [];
 
   records.forEach(r => {
-    const t = r.TimeDK;
+    const t = r.TimeDK; // brug dansk tid som du ønskede
     const p = (r.DayAheadPriceDKK / 1000) * 1.25;
 
     if (r.PriceArea === "DK1") jf.push({ time: t, price: p });
     if (r.PriceArea === "DK2") oe.push({ time: t, price: p });
   });
 
-  // --- Find maks/min ---
+  // Find max/min
   function extrema(arr) {
     let min = arr[0], max = arr[0];
     arr.forEach(v => {
@@ -65,7 +84,7 @@ const endStr = format(end);
   const jfMM = extrema(jf);
   const oeMM = extrema(oe);
 
-  // --- MIDLET pr time ---
+  // MIDLET pr time
   const times = {};
 
   function group(arr, key) {
@@ -83,7 +102,7 @@ const endStr = format(end);
 
   const hours = Object.keys(times).sort();
 
-  // --- CSV: data.csv ---
+  // CSV: data.csv
   let csv1 = "Time,Jylland + Fyn,Sjælland + Øer\n";
 
   hours.forEach(h => {
@@ -101,12 +120,12 @@ const endStr = format(end);
   fs.writeFileSync("data.csv", csv1, "utf8");
   console.log("✔ data.csv genereret");
 
-  // --- CSV: extrema.csv (uændret som ønsket) ---
+  // EXTREMA CSV (uændret som ønsket)
   let csv2 = " ,Jylland + Fyn, ,Sjælland + Øer, \n";
-  
+
   csv2 += `Laveste pris,${jfMM.min.time},${(jfMM.min.price).toFixed(2)},${oeMM.min.time},${(oeMM.min.price).toFixed(2)}\n`;
   csv2 += `Højeste pris,${jfMM.max.time},${(jfMM.max.price).toFixed(2)},${oeMM.max.time},${(oeMM.max.price).toFixed(2)}\n`;
-  
+
   fs.writeFileSync("extrema.csv", csv2, "utf8");
   console.log("✔ extrema.csv genereret");
 
