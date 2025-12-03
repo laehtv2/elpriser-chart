@@ -91,9 +91,7 @@ const endStr = formatDK(end);
 
   function group(arr, key) {
     arr.forEach(d => {
-      const date = new Date(d.time);
-      date.setMinutes(0, 0, 0);
-      const hour = date.toISOString().slice(0, 16);
+      const hour = d.time.slice(0, 16); // "YYYY-MM-DDTHH:MM"
       if (!times[hour]) times[hour] = { jf: [], oe: [] };
       times[hour][key].push(d.price);
     });
