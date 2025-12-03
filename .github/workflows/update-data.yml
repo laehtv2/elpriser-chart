@@ -1,4 +1,4 @@
-name: Opdater elpriser
+name: Opdater elpriser # Opdater elpriser (test commit for cron)
 
 on:
   schedule:
