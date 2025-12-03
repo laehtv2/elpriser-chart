@@ -1,4 +1,5 @@
-name: Opdater elpriser # Opdater elpriser (test commit for cron)
+# Reactivated after API HTML failures
+name: Opdater elpriser
 
 on:
   schedule:
