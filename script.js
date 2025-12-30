@@ -1,23 +1,18 @@
 const fs = require("fs");
 
-// --- Funktion til at hente seneste EUR-kurs fra Nationalbanken ---
+// --- 1. Hent seneste EUR-kurs fra Nationalbanken (Sidste element i RSS) ---
 async function getLatestEuroRate() {
   const rssUrl = "https://www.nationalbanken.dk/api/currencyrates?format=rss&lang=da&isoCodes=EUR";
   try {
     const res = await fetch(rssUrl);
     const xml = await res.text();
-    
-    // Vi finder ALLE forekomster af mønsteret "koster XXX,XX DKK"
     const regex = /koster\s+([\d,]+)\s+DKK/g;
     const matches = [...xml.matchAll(regex)];
     
     if (matches.length > 0) {
-      // Vi tager det SIDSTE match i listen, da det er den nyeste dato
       const lastMatch = matches[matches.length - 1];
-      const rateStr = lastMatch[1];
-      
-      const rate = parseFloat(rateStr.replace(",", ".")) / 100;
-      console.log(`ℹ Nationalbanken kurs fundet (nyeste nederst): 1 EUR = ${rate} DKK`);
+      const rate = parseFloat(lastMatch[1].replace(",", ".")) / 100;
+      console.log(`ℹ Nationalbanken kurs anvendt: 1 EUR = ${rate} DKK`);
       return rate;
     }
   } catch (err) {
@@ -26,7 +21,7 @@ async function getLatestEuroRate() {
   return 7.4604; 
 }
 
-// --- Standard fetch funktion ---
+// --- 2. Standard fetch funktion med retries ---
 async function fetchJSON(url, retries = 3) {
   for (let i = 1; i <= retries; i++) {
     try {
@@ -42,33 +37,31 @@ async function fetchJSON(url, retries = 3) {
   }
 }
 
-// --- Tidsopsætning (bruger nuværende tid i ISO) ---
+// --- 3. Tidsopsætning ---
 const now = new Date();
 now.setMinutes(0, 0, 0);
 const startStr = now.toISOString().slice(0, 16);
 const endStr = new Date(now.getTime() + 36 * 3600000).toISOString().slice(0, 16);
 
 (async () => {
-  // 1. Hent den dagsaktuelle kurs fra RSS
   const EUR_DKK_RATE = await getLatestEuroRate();
 
-  // 2. Hent elpriser
   const url = `https://api.energidataservice.dk/dataset/DayAheadPrices?start=${startStr}&end=${endStr}&filter=${encodeURIComponent('{"PriceArea":["DK1","DK2"]}')}&limit=500`;
   const json = await fetchJSON(url);
   const records = json.records;
 
   if (!records || records.length === 0) {
-    console.error("Ingen data modtaget fra Energi Data Service");
+    console.error("Ingen data modtaget");
     return;
   }
 
-  const jf = [];
-  const oe = [];
+  const jfRaw = [];
+  const oeRaw = [];
 
+  // Behandl hver record og håndter EUR fallback
   records.forEach(r => {
     let priceMWh = r.DayAheadPriceDKK;
     
-    // Fallback logik: Hvis DKK mangler, brug EUR * Nationalbankens kurs
     if (priceMWh === null || priceMWh === undefined) {
       if (r.DayAheadPriceEUR !== null && r.DayAheadPriceEUR !== undefined) {
         priceMWh = r.DayAheadPriceEUR * EUR_DKK_RATE;
@@ -77,20 +70,15 @@ const endStr = new Date(now.getTime() + 36 * 3600000).toISOString().slice(0, 16)
       }
     }
 
-    // Beregn kr/kWh inkl. moms
     const p = (priceMWh / 1000) * 1.25;
     const dataObj = { time: r.TimeDK, price: p };
 
-    if (r.PriceArea === "DK1") jf.push(dataObj);
-    if (r.PriceArea === "DK2") oe.push(dataObj);
+    if (r.PriceArea === "DK1") jfRaw.push(dataObj);
+    if (r.PriceArea === "DK2") oeRaw.push(dataObj);
   });
 
-  // Sortering (sikrer kronologisk rækkefølge)
-  jf.sort((a, b) => a.time.localeCompare(b.time));
-  oe.sort((a, b) => a.time.localeCompare(b.time));
-
-  // Find extrema
-  function extrema(arr) {
+  // Find max/min (Extrema)
+  function findExtrema(arr) {
     if (arr.length === 0) return { min: {time: "-", price: 0}, max: {time: "-", price: 0} };
     let min = arr[0], max = arr[0];
     arr.forEach(v => {
@@ -100,26 +88,48 @@ const endStr = new Date(now.getTime() + 36 * 3600000).toISOString().slice(0, 16)
     return { min, max };
   }
 
-  const jfMM = extrema(jf);
-  const oeMM = extrema(oe);
+  const jfMM = findExtrema(jfRaw);
+  const oeMM = findExtrema(oeRaw);
 
-  // --- CSV GENERERING ---
+  // --- GRUPPERING OG GENNEMSNIT (Som i din oprindelige kode) ---
+  const times = {};
 
-  // data.csv
+  function group(arr, key) {
+    arr.forEach(d => {
+      const hour = d.time.slice(0, 13) + ":00"; 
+      if (!times[hour]) times[hour] = { jf: [], oe: [] };
+      times[hour][key].push(d.price);
+    });
+  }
+
+  group(jfRaw, "jf");
+  group(oeRaw, "oe");
+
+  const hours = Object.keys(times).sort();
+
+  // --- CSV 1: data.csv (Gennemsnit pr. time) ---
   let csv1 = "Time,Jylland + Fyn,Sjælland + Øer\n";
-  jf.forEach((row, index) => {
-    const time = row.time.replace("T", " ");
-    const priceJF = row.price.toFixed(3);
-    const priceOE = oe[index] ? oe[index].price.toFixed(3) : "";
-    csv1 += `${time},${priceJF},${priceOE}\n`;
-  });
-  fs.writeFileSync("data.csv", csv1, "utf8");
+  hours.forEach(h => {
+    const avgJF = times[h].jf.length
+      ? (times[h].jf.reduce((a,b)=>a+b,0) / times[h].jf.length).toFixed(3)
+      : "";
 
-  // extrema.csv
+    const avgOE = times[h].oe.length
+      ? (times[h].oe.reduce((a,b)=>a+b,0) / times[h].oe.length).toFixed(3)
+      : "";
+
+    csv1 += `${h.replace("T", " ")},${avgJF},${avgOE}\n`;
+  });
+
+  fs.writeFileSync("data.csv", csv1, "utf8");
+  console.log("✔ data.csv genereret (med gennemsnit)");
+
+  // --- CSV 2: extrema.csv ---
   let csv2 = " ,Jylland + Fyn, ,Sjælland + Øer, \n";
   csv2 += `Laveste pris,${jfMM.min.time.replace("T", " ")},${(jfMM.min.price).toFixed(2)},${oeMM.min.time.replace("T", " ")},${(oeMM.min.price).toFixed(2)}\n`;
   csv2 += `Højeste pris,${jfMM.max.time.replace("T", " ")},${(jfMM.max.price).toFixed(2)},${oeMM.max.time.replace("T", " ")},${(oeMM.max.price).toFixed(2)}\n`;
-  fs.writeFileSync("extrema.csv", csv2, "utf8");
 
-  console.log(`✔ Succes! data.csv og extrema.csv er opdateret.`);
+  fs.writeFileSync("extrema.csv", csv2, "utf8");
+  console.log("✔ extrema.csv genereret");
+
 })();
