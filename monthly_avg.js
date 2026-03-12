@@ -26,6 +26,10 @@ async function fetchJSON(url) {
   return JSON.parse(text);
 }
 
+
+// -------- Datoer --------
+const now = new Date();
+
 // første dag i denne måned
 const end = new Date();
 end.setDate(1);
@@ -39,6 +43,7 @@ const splitDate = new Date("2025-10-01");
 
 const startStr = start.toISOString().slice(0,10);
 const endStr = end.toISOString().slice(0,10);
+
 (async () => {
 
   const EUR_DKK_RATE = await getLatestEuroRate();
