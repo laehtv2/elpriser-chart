@@ -31,6 +31,8 @@ const now = new Date();
 const start = new Date();
 start.setMonth(start.getMonth() - 24);
 
+const splitDate = new Date("2025-10-01");
+
 const startStr = start.toISOString().slice(0,10);
 const endStr = now.toISOString().slice(0,10);
 
@@ -40,38 +42,83 @@ const endStr = now.toISOString().slice(0,10);
 
   console.log(`Henter data fra ${startStr} til ${endStr}`);
 
-  const url =
-    `https://api.energidataservice.dk/dataset/DayAheadPrices` +
-    `?start=${startStr}` +
-    `&end=${endStr}` +
-    `&filter=${encodeURIComponent('{"PriceArea":["DK1","DK2"]}')}` +
-    `&limit=50000`;
+  let records = [];
 
-  const json = await fetchJSON(url);
+  // ---------- ELSPOTPRICES (før okt 2025)
+  if (start < splitDate) {
 
-  const records = json.records;
+    const endOld = new Date(Math.min(splitDate.getTime(), now.getTime()));
+    const endOldStr = endOld.toISOString().slice(0,10);
+
+    const urlOld =
+      `https://api.energidataservice.dk/dataset/Elspotprices` +
+      `?start=${startStr}` +
+      `&end=${endOldStr}` +
+      `&filter=${encodeURIComponent('{"PriceArea":["DK1","DK2"]}')}` +
+      `&limit=50000`;
+
+    console.log("Henter Elspotprices...");
+
+    const jsonOld = await fetchJSON(urlOld);
+
+    jsonOld.records.forEach(r => {
+      records.push({
+        time: r.HourDK,
+        area: r.PriceArea,
+        priceDKK: r.SpotPriceDKK,
+        priceEUR: r.SpotPriceEUR
+      });
+    });
+  }
+
+  // ---------- DAYAHEADPRICES (efter okt 2025)
+  if (now > splitDate) {
+
+    const startNew = new Date(Math.max(start.getTime(), splitDate.getTime()));
+    const startNewStr = startNew.toISOString().slice(0,10);
+
+    const urlNew =
+      `https://api.energidataservice.dk/dataset/DayAheadPrices` +
+      `?start=${startNewStr}` +
+      `&end=${endStr}` +
+      `&filter=${encodeURIComponent('{"PriceArea":["DK1","DK2"]}')}` +
+      `&limit=50000`;
+
+    console.log("Henter DayAheadPrices...");
+
+    const jsonNew = await fetchJSON(urlNew);
+
+    jsonNew.records.forEach(r => {
+      records.push({
+        time: r.TimeDK,
+        area: r.PriceArea,
+        priceDKK: r.DayAheadPriceDKK,
+        priceEUR: r.DayAheadPriceEUR
+      });
+    });
+  }
 
   const months = {};
 
   records.forEach(r => {
 
-    let priceMWh = r.DayAheadPriceDKK;
+    let priceMWh = r.priceDKK;
 
-    if (priceMWh === null && r.DayAheadPriceEUR !== null) {
-      priceMWh = r.DayAheadPriceEUR * EUR_DKK_RATE;
+    if (priceMWh === null && r.priceEUR !== null) {
+      priceMWh = r.priceEUR * EUR_DKK_RATE;
     }
 
     if (!priceMWh) return;
 
     const priceKWh = (priceMWh / 1000) * 1.25;
 
-    const month = r.TimeDK.slice(0,7);
+    const month = r.time.slice(0,7);
 
     if (!months[month]) {
       months[month] = { DK1: [], DK2: [] };
     }
 
-    months[month][r.PriceArea].push(priceKWh);
+    months[month][r.area].push(priceKWh);
 
   });
 
