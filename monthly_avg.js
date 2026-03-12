@@ -26,16 +26,19 @@ async function fetchJSON(url) {
   return JSON.parse(text);
 }
 
-// -------- Datoer --------
-const now = new Date();
-const start = new Date();
+// første dag i denne måned
+const end = new Date();
+end.setDate(1);
+end.setHours(0,0,0,0);
+
+// start = 24 måneder før
+const start = new Date(end);
 start.setMonth(start.getMonth() - 24);
 
 const splitDate = new Date("2025-10-01");
 
 const startStr = start.toISOString().slice(0,10);
-const endStr = now.toISOString().slice(0,10);
-
+const endStr = end.toISOString().slice(0,10);
 (async () => {
 
   const EUR_DKK_RATE = await getLatestEuroRate();
